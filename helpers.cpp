@@ -2,56 +2,52 @@
 
 void print_config(Params p)
 {
-    std::string replacement_policy, inclusion_property;
+    std::string str_replacement_policy, str_inclusion_property;
 
     switch(p.replacement_policy) {
         case 0:
-            replacement_policy = "LRU";
+            str_replacement_policy = "LRU";
             break; 
         case 1:
-            replacement_policy = "Pseudo-LRU";
+            str_replacement_policy = "Pseudo-LRU";
             break;
         case 2:
-            replacement_policy = "Optimal";
+            str_replacement_policy = "Optimal";
             break;
     }
 
     switch(p.inclusion_property) {
         case 0:
-            inclusion_property = "non-inclusive";
+            str_inclusion_property = "non-inclusive";
             break; 
         case 1:
-            inclusion_property = "inclusive";
+            str_inclusion_property = "inclusive";
             break;
     }
 
     std::cout << "===== Simulator configuration =====" << std::endl;
-    std::cout << "BLOCKSIZE: " << std::to_string(p.block_size) << std::endl;
-    std::cout << "L1_SIZE: " << std::to_string(p.l1_size) << std::endl;
-    std::cout << "L1_ASSOC: " << std::to_string(p.l1_assoc) << std::endl;
-    std::cout << "L2_SIZE: " << std::to_string(p.l2_size) << std::endl;
-    std::cout << "L2_ASSOC: " << std::to_string(p.l2_assoc) << std::endl;
-    std::cout << "REPLACEMENT POLICY: " << replacement_policy << std::endl;
-    std::cout << "INCLUSION PROPERTY: " << inclusion_property << std::endl;
-    std::cout << "trace_file: " << p.trace_file << std::endl;
+    std::cout << std::left << std::setw(23) << "BLOCKSIZE:" << std::to_string(p.block_size) << std::endl;
+    std::cout << std::left << std::setw(23) << "L1_SIZE: " << std::to_string(p.l1_size) << std::endl;
+    std::cout << std::left << std::setw(23) << "L1_ASSOC: " << std::to_string(p.l1_assoc) << std::endl;
+    std::cout << std::left << std::setw(23) << "L2_SIZE: " << std::to_string(p.l2_size) << std::endl;
+    std::cout << std::left << std::setw(23) << "L2_ASSOC: " << std::to_string(p.l2_assoc) << std::endl;
+    std::cout << std::left << std::setw(23) << "REPLACEMENT POLICY: " << str_replacement_policy << std::endl;
+    std::cout << std::left << std::setw(23) << "INCLUSION PROPERTY: " << str_inclusion_property << std::endl;
+    std::cout << std::left << std::setw(23) << "trace_file: " << p.trace_file << std::endl;
 }
 
 void print_contents(Cache c)
 {
     for (int i = 0; i < c.sets; i++)
     {
-        std::cout << "Set     " << std::setw(3) << i << ": ";
+        std::cout << std::left << std::setw(8) << "Set" << std::setw(4) << std::to_string(i) + ": ";
         for (int j = 0; j < c.assoc; j++)
         {
-            std::cout << std::hex << c.cache[i][j];
+            std::cout <<  std::setw(7) << std::hex << c.cache[i][j] << std::dec << std::setw(4);
 
             if (c.dirty[i][j])
             {
-                std::cout << " D   ";
-            }
-            else
-            {
-                std::cout << "     ";
+                std::cout << "D";
             }
         }
         std::cout << std::endl;
