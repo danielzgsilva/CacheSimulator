@@ -71,7 +71,7 @@ std::vector<unsigned long> Cache::decode_address(std::bitset<32> address)
     return fields;
 }
 
-bool Cache::tag_match(std::vector<unsigned long> address_fields)
+bool Cache::tag_match(std::vector<unsigned long> address_fields, std::string action)
 {
     unsigned long tag = address_fields[0];
     unsigned long index = address_fields[1];
@@ -89,6 +89,13 @@ bool Cache::tag_match(std::vector<unsigned long> address_fields)
             // update LRU matrix on hit
             this->lru_matrix.set_row(index, i);
             this->lru_matrix.unset_column(index, i);
+
+            // Set block to dirty if write request
+            if (action.compare(WRITE) == 0)
+            {
+                this->dirty[index][i] = true;
+            }
+            //std::cout << "HIT" << std::endl;
         }
     }
     return hit;
@@ -128,6 +135,7 @@ bool Cache::allocate(std::vector<unsigned long> address_fields, std::string acti
     {
         this->cache[index][insert_way] = tag;
         this->open[index][insert_way] = false;
+        //std::cout << "insert into empty way " << insert_way << std::endl;
     }
     else
     {   
@@ -143,7 +151,19 @@ bool Cache::allocate(std::vector<unsigned long> address_fields, std::string acti
 
         // replace victim block
         this->cache[index][insert_way] = tag;
-        this->cache[index][insert_way] = tag;
+        this->dirty[index][insert_way] = false;
+
+        //std::cout << "replace into way " << insert_way << std::endl;
+    }
+
+    // update LRU matrix after allocation
+    this->lru_matrix.set_row(index, insert_way);
+    this->lru_matrix.unset_column(index, insert_way);
+
+    // Mark block as dirty if write request
+    if (action.compare(WRITE) == 0)
+    {
+        this->dirty[index][insert_way] = true;
     }
 
     return writeback_request;
@@ -152,7 +172,7 @@ bool Cache::allocate(std::vector<unsigned long> address_fields, std::string acti
 int Cache::read(std::vector<unsigned long> address_fields)
 {
     this->reads++;
-    bool hit = this->tag_match(address_fields);
+    bool hit = this->tag_match(address_fields, READ);
 
     if (hit)
     {
@@ -168,13 +188,7 @@ int Cache::read(std::vector<unsigned long> address_fields)
 int Cache::write(std::vector<unsigned long> address_fields)
 {
     this->writes++;
-    bool hit = this->tag_match(address_fields);
-
-     // Mark block as dirty if write request
-    if (action.compare(WRITE) == 0)
-    {
-        this->dirty[index][insert_way] = true;
-    }
+    bool hit = this->tag_match(address_fields, WRITE);
 
     if (hit)
     {

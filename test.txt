@@ -1,9 +1,0 @@
-===== Simulator configuration =====
-BLOCKSIZE: 16
-L1_SIZE: 1024
-L1_ASSOC: 2
-L2_SIZE: 0
-L2_ASSOC: 0
-REPLACEMENT POLICY: LRU
-INCLUSION PROPERTY: non-inclusive
-trace_file: gcc_trace.txt

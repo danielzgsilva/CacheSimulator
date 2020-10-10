@@ -47,7 +47,11 @@ int main(int argc, char** argv)
         while (getline(input, line))
         {
             // ignore empty line
-            if (line.empty()) {continue;}
+            if (line.empty()) 
+            {
+                //std::cout << "EMPTY LINE" << i << std::endl;
+                continue;
+            }
 
             // read in action and address
             std::istringstream ss_line(line);
@@ -61,8 +65,8 @@ int main(int argc, char** argv)
             // decode address into tag, index, and offset fields
             std::vector<unsigned long> l1_fields = l1.decode_address(bit_address);
 
-            std::cout << action << ' ' <<  hex_address << ":  ";
-            std::cout << std::hex << l1_fields[0] << std::dec << "  " << l1_fields[1] << "  " << l1_fields[2];
+            //std::cout << i << ": " << action << ' ' <<  hex_address << ":  ";
+            //std::cout << std::hex << l1_fields[0] << std::dec << "  " << l1_fields[1] << "  " << l1_fields[2] << std::endl;
 
             // -------------------------------------------------------------------------------------------------
             // -------------------------------------------------------------------------------------------------
@@ -113,14 +117,11 @@ int main(int argc, char** argv)
 
             else
             {
-                std::cout << " action " + action + " is not supported";
+                std::cout << " action " + action + " is not supported" << std::endl;
             }
 
-            std::cout << std::endl;
-            if (i > 5)
-            {
-                //break;
-            }
+            //print_contents(l1);
+            //std::cout << " -------------------------------------------------------------------------------------------------" << std::endl;
             i++;
         }
     }
@@ -136,7 +137,7 @@ int main(int argc, char** argv)
         print_contents(l2);
     }
 
-    print_results(l1, l2);
+    print_results(l1, l2, using_l2);
 
     return 0;
 }

@@ -43,4 +43,9 @@ unsigned long LRU_Matrix::get_lru_block(unsigned long index)
             return i;
         }
     }
+
+    std::cout << "THIS SHOULDNT HAVE HAPPENED " << std::endl;
+    std::cout << "THIS SHOULDNT HAVE HAPPENED " << std::endl;
+    std::cout << "THIS SHOULDNT HAVE HAPPENED " << std::endl;
+    return 0;
 }

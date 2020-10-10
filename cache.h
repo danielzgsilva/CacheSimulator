@@ -83,7 +83,7 @@ class Cache
 
         std::vector<unsigned long> decode_address(std::bitset<32> address);
 
-        bool tag_match(std::vector<unsigned long> address_fields);
+        bool tag_match(std::vector<unsigned long> address_fields, std::string action);
 
         long find_open_way(unsigned long index);
 
@@ -98,4 +98,4 @@ class Cache
 
 void print_config(Params p);
 void print_contents(Cache cache);
-void print_results(Cache l1, Cache l2);
+void print_results(Cache l1, Cache l2, bool using_l2);
