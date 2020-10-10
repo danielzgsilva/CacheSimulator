@@ -62,7 +62,7 @@ void print_results(Cache l1, Cache l2, bool using_l2)
 
     if (using_l2)
     {
-        assert(l2.reads == (l1.writes + l1.reads));
+        assert(l2.reads == (l1.write_misses + l1.read_misses));
         assert(l2.writes == l1.writebacks);
 
         l2_miss_rate = (float)l2.read_misses / l2.reads;

@@ -36,6 +36,12 @@ struct Params
     std::string trace_file;
 };
 
+struct writeback
+{
+    bool needed;
+    std::bitset<address_bits> address;
+};
+
 class LRU_Matrix
 {
     public:
@@ -64,7 +70,7 @@ class Cache
         // 0 - non-inclusive 1 - inclusive
         int inclusion_property;
 
-        int index_bits, offset_bits, tag_bits;
+        int num_index_bits, num_offset_bits, num_tag_bits;
 
         LRU_Matrix lru_matrix;
 
@@ -81,7 +87,9 @@ class Cache
 
         Cache(unsigned long block_size, unsigned long size, unsigned long assoc, int replacement, int inclusion);
 
-        std::vector<unsigned long> decode_address(std::bitset<32> address);
+        std::vector<unsigned long> decode_address(std::bitset<address_bits> address);
+
+        std::bitset<32> encode_address(unsigned long index,unsigned long tag);
 
         bool tag_match(std::vector<unsigned long> address_fields, std::string action);
 
@@ -89,7 +97,7 @@ class Cache
 
         unsigned long find_victim(unsigned long index);
 
-        bool allocate(std::vector<unsigned long> address_fields, std::string action);
+        writeback allocate(std::vector<unsigned long> address_fields, std::string action);
         
         int read(std::vector<unsigned long> address_fields);
         

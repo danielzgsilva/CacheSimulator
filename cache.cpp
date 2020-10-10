@@ -20,9 +20,9 @@ Cache::Cache(unsigned long block_size, unsigned long size, unsigned long assoc, 
         this->inclusion_property = inclusion;
         
         // Compute number of bits for each field
-        this->index_bits = log2(this->sets);
-        this->offset_bits = log2(this->block_size);
-        this->tag_bits = address_bits - this->index_bits - this->offset_bits;
+        this->num_index_bits = log2(this->sets);
+        this->num_offset_bits = log2(this->block_size);
+        this->num_tag_bits = address_bits - this->num_index_bits - this->num_offset_bits;
 
         // Create cache given number of sets and ways
         this->cache.resize(this->sets, std::vector<unsigned long>(this->assoc));
@@ -45,7 +45,7 @@ Cache::Cache(unsigned long block_size, unsigned long size, unsigned long assoc, 
         }
         else
         {
-            assert(false && "the replacement policy you entered is not supported. (must be 0,1, or 2)");
+            assert(false && "the replacement policy you entered is not supported. (must be 0, 1, or 2)");
         }
     }
 }
@@ -56,13 +56,13 @@ std::vector<unsigned long> Cache::decode_address(std::bitset<32> address)
     std::string string_address = address.to_string();
 
     // Tag field
-    std::string tag = string_address.substr(0, this->tag_bits);
+    std::string tag = string_address.substr(0, this->num_tag_bits);
 
     // Index field for set lookup
-    std::string index = string_address.substr(this->tag_bits, this->index_bits);
+    std::string index = string_address.substr(this->num_tag_bits, this->num_index_bits);
 
     // Block offset field
-    std::string offset = string_address.substr(this->tag_bits+this->index_bits, this->offset_bits);
+    std::string offset = string_address.substr(this->num_tag_bits+this->num_index_bits, this->num_offset_bits);
 
     fields[0] = std::strtoul(tag.c_str(), NULL, 2);
     fields[1] = std::strtoul(index.c_str(), NULL, 2);
@@ -71,12 +71,24 @@ std::vector<unsigned long> Cache::decode_address(std::bitset<32> address)
     return fields;
 }
 
+std::bitset<32> Cache::encode_address(unsigned long index, unsigned long tag)
+{
+    std::bitset<address_bits> address;
+    std::bitset<address_bits> tag_bits(tag);
+    std::bitset<address_bits> index_bits(index);
+
+    tag_bits <<= this->num_index_bits + this->num_offset_bits;
+    index_bits <<= this->num_offset_bits;
+
+    address = tag_bits | index_bits;
+
+    return address;
+}
+
 bool Cache::tag_match(std::vector<unsigned long> address_fields, std::string action)
 {
     unsigned long tag = address_fields[0];
     unsigned long index = address_fields[1];
-    unsigned long offset = address_fields[2];
-
     bool hit = false;
 
     // perform tag matching on set [index]
@@ -120,12 +132,12 @@ unsigned long Cache::find_victim(unsigned long index)
     return this->lru_matrix.get_lru_block(index);
 }
 
-bool Cache::allocate(std::vector<unsigned long> address_fields, std::string action)
+writeback Cache::allocate(std::vector<unsigned long> address_fields, std::string action)
 {
-    bool writeback_request = false;
     unsigned long tag = address_fields[0];
     unsigned long index = address_fields[1];
-    unsigned long offset = address_fields[2];
+
+    writeback wb = {false, std::bitset<32>()};
 
     // Look for empty way
     unsigned long insert_way = this->find_open_way(index);
@@ -145,7 +157,8 @@ bool Cache::allocate(std::vector<unsigned long> address_fields, std::string acti
         // Create writeback request to next level if victim is dirty
         if (this->dirty[index][insert_way])
         {
-            writeback_request = true;
+            wb.needed = true;
+            wb.address = this->encode_address(index, this->cache[index][insert_way]);
             this->writebacks++;
         }
 
@@ -166,7 +179,7 @@ bool Cache::allocate(std::vector<unsigned long> address_fields, std::string acti
         this->dirty[index][insert_way] = true;
     }
 
-    return writeback_request;
+    return wb;
 }
 
 int Cache::read(std::vector<unsigned long> address_fields)

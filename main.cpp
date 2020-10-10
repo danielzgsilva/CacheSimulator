@@ -33,15 +33,14 @@ int main(int argc, char** argv)
     // Trace file stream
     std::ifstream input("./traces/" + p.trace_file);
 
-    std::string line;
-    std::string action;
-    std::string hex_address;
+    std::string line, action, hex_address;
     unsigned long int_address;
-    std::bitset<32> bit_address;
+    std::bitset<address_bits> bit_address;
 
-    std::vector<unsigned long> l1_fields, l2_fields;
+    std::vector<unsigned long> l1_fields, l2_fields, wb_fields;
+    unsigned long l1_tag, l1_index, l2_tag, l2_index;
     int l1_result, l2_result;
-    bool needs_writeback;
+    writeback writeback;
 
     int i = 0;
     if (input.is_open())
@@ -62,7 +61,7 @@ int main(int argc, char** argv)
             // hex to binary
             std::stringstream ss_hex(hex_address);
             ss_hex >> std::hex >> int_address;
-            bit_address = std::bitset<32>(int_address);
+            bit_address = std::bitset<address_bits>(int_address);
 
             // decode address into tag, index, and offset fields
             l1_fields = l1.decode_address(bit_address);
@@ -72,8 +71,7 @@ int main(int argc, char** argv)
 
             // -------------------------------------------------------------------------------------------------
             // -------------------------------------------------------------------------------------------------
-
-
+            
             if (action.compare(READ) == 0)
             {   
                 l1_result = l1.read(l1_fields);
@@ -89,29 +87,44 @@ int main(int argc, char** argv)
                         // hit in l2
                         if (l2_result == READ_HIT)
                         {
-                            // bring block to l1
-                            needs_writeback = l1.allocate(l1_fields, READ);
+                            // bring block from l2 to l1 and perform read
+                            writeback = l1.allocate(l1_fields, READ);
 
-                            // writeback to l2 if needed
-                            if (needs_writeback)
+                            // write back to l2 if needed
+                            if (writeback.needed)
                             {
-                                l2_result = l2.write(l2_fields);
+                                wb_fields = l2.decode_address(writeback.address);
+                                l2_result = l2.write(wb_fields);
 
                                 if (l2_result == WRITE_MISS)
                                 {
-                                    l2.allocate(l2_fields, WRITE);
+                                    l2.allocate(wb_fields, WRITE);
                                 }
                             }
                         }
                         // missed in l2
                         else
                         {
-                            
+                            // bring block from memory to l2
+                            l2.allocate(l2_fields, READ);
+
+                            // then bring to l1 and perform read
+                            writeback = l1.allocate(l1_fields, READ);
+
+                            // write back to l2 if needed
+                            if (writeback.needed)
+                            {
+                                wb_fields = l2.decode_address(writeback.address);
+                                l2_result = l2.write(wb_fields);
+
+                                if (l2_result == WRITE_MISS)
+                                {
+                                    l2.allocate(wb_fields, WRITE);
+                                }
+                            }
                         }
                         
                     }
-
-
                     // With no l2
                     else
                     {
@@ -130,12 +143,54 @@ int main(int argc, char** argv)
                     // Go to next level
                     if (using_l2)
                     {
+                        l2_fields = l2.decode_address(bit_address);
+                        l2_result = l2.read(l2_fields);
 
+                        // hit in l2
+                        if (l2_result == READ_HIT)
+                        {
+                            // bring block from l2 to l1 and perform write
+                            writeback = l1.allocate(l1_fields, WRITE);
+
+                            // write back if needed
+                            if (writeback.needed)
+                            {
+                                wb_fields = l2.decode_address(writeback.address);
+                                l2_result = l2.write(wb_fields);
+
+                                if (l2_result == WRITE_MISS)
+                                {
+                                    l2.allocate(wb_fields, WRITE);
+                                }
+                            }
+                        }
+                        // missed in l2
+                        else 
+                        {
+                            // bring block from memory to l2
+                            l2.allocate(l2_fields, READ);
+
+                            // then bring to l1 and perform write
+                            writeback = l1.allocate(l1_fields, WRITE);
+
+                            // write back if needed
+                            if (writeback.needed)
+                            {
+                                wb_fields = l2.decode_address(writeback.address);
+                                l2_result = l2.write(wb_fields);
+
+                                if (l2_result == WRITE_MISS)
+                                {
+                                    l2.allocate(wb_fields, WRITE);
+                                }
+                            }
+                        }
+                        
                     }
                     // With no l2
                     else
                     {
-                        needs_writeback = l1.allocate(l1_fields, WRITE);
+                        l1.allocate(l1_fields, WRITE);
                     }
                 }
             }
