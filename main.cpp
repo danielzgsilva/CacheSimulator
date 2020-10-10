@@ -38,6 +38,8 @@ int main(int argc, char** argv)
     std::string hex_address;
     unsigned long int_address;
     std::bitset<32> bit_address;
+
+    std::vector<unsigned long> l1_fields, l2_fields;
     int l1_result, l2_result;
     bool needs_writeback;
 
@@ -63,7 +65,7 @@ int main(int argc, char** argv)
             bit_address = std::bitset<32>(int_address);
 
             // decode address into tag, index, and offset fields
-            std::vector<unsigned long> l1_fields = l1.decode_address(bit_address);
+            l1_fields = l1.decode_address(bit_address);
 
             //std::cout << i << ": " << action << ' ' <<  hex_address << ":  ";
             //std::cout << std::hex << l1_fields[0] << std::dec << "  " << l1_fields[1] << "  " << l1_fields[2] << std::endl;
@@ -81,12 +83,39 @@ int main(int argc, char** argv)
                     // Go to next level
                     if (using_l2)
                     {
+                        l2_fields = l2.decode_address(bit_address);
+                        l2_result = l2.read(l2_fields);
 
+                        // hit in l2
+                        if (l2_result == READ_HIT)
+                        {
+                            // bring block to l1
+                            needs_writeback = l1.allocate(l1_fields, READ);
+
+                            // writeback to l2 if needed
+                            if (needs_writeback)
+                            {
+                                l2_result = l2.write(l2_fields);
+
+                                if (l2_result == WRITE_MISS)
+                                {
+                                    l2.allocate(l2_fields, WRITE);
+                                }
+                            }
+                        }
+                        // missed in l2
+                        else
+                        {
+                            
+                        }
+                        
                     }
+
+
                     // With no l2
                     else
                     {
-                        needs_writeback = l1.allocate(l1_fields, READ);
+                        l1.allocate(l1_fields, READ);
                     }
                 }
             }
