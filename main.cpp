@@ -42,7 +42,7 @@ int main(int argc, char** argv)
     int l1_result, l2_result;
     writeback writeback;
 
-    int i = 0;
+    int counter = 0;
     if (input.is_open())
     {
         while (getline(input, line))
@@ -57,6 +57,13 @@ int main(int argc, char** argv)
             // read in action and address
             std::istringstream ss_line(line);
             if (!(ss_line >> action >> hex_address)) { break; }
+
+            // to ignore BOM characters
+            if (counter == 0)
+            {
+                std::string c_line = ss_line.str();
+                action = c_line[3];
+            }
             
             // hex to binary
             std::stringstream ss_hex(hex_address);
@@ -157,7 +164,7 @@ int main(int argc, char** argv)
                             {
                                 wb_fields = l2.decode_address(writeback.address);
                                 l2_result = l2.write(wb_fields);
-
+        
                                 if (l2_result == WRITE_MISS)
                                 {
                                     l2.allocate(wb_fields, WRITE);
@@ -206,7 +213,7 @@ int main(int argc, char** argv)
 
             //print_contents(l1);
             //std::cout << " -------------------------------------------------------------------------------------------------" << std::endl;
-            i++;
+            counter++;
         }
     }
 

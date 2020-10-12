@@ -129,7 +129,22 @@ long Cache::find_open_way(unsigned long index)
 
 unsigned long Cache::find_victim(unsigned long index)
 {   
-    return this->lru_matrix.get_lru_block(index);
+    if (this->replacement_policy == LRU)
+    {
+        return this->lru_matrix.get_lru_block(index);
+    }
+    else if (this->replacement_policy == PLRU)
+    {
+        assert(false && "PLRU replacement policy not ready");
+    }
+    else if (this->replacement_policy == OPT)
+    {
+        assert(false && "optimal replacement policy not ready");
+    }
+    else
+    {
+        assert(false && "unsupported replacement policy in find_victim()");
+    }
 }
 
 writeback Cache::allocate(std::vector<unsigned long> address_fields, std::string action)

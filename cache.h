@@ -59,6 +59,20 @@ class LRU_Matrix
         unsigned long get_lru_block(unsigned long index);
 };
 
+class LRU_tree
+{
+    public:
+        unsigned long sets;
+        unsigned long assoc;
+
+        // using 1d array representation of a binary tree,
+        // one tree for each set in a cache
+        std::vector<std::vector<bool>> tree;
+
+        LRU_tree(unsigned long sets, unsigned long assoc);
+        LRU_tree() = default;
+};
+
 class Cache
 {
     public:
