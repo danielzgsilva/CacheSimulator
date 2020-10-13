@@ -1,6 +1,6 @@
 #include "cache.h"
 
-Cache::Cache(unsigned long block_size, unsigned long size, unsigned long assoc, int replacement, int inclusion)
+Cache::Cache(unsigned long block_size, unsigned long size, unsigned long assoc, int replacement)
 {
     assert(block_size > 0 && (block_size & (block_size - 1)) == 0 && "block size must be positive and a power of 2");
     assert(size >= 0 && "cache size must be non-negative");
@@ -17,7 +17,6 @@ Cache::Cache(unsigned long block_size, unsigned long size, unsigned long assoc, 
         assert(this->sets > 0 && (this->sets & (this->sets - 1)) == 0 && "number of sets must be a power of 2");
 
         this->replacement_policy = replacement;
-        this->inclusion_property = inclusion;
         
         // Compute number of bits for each field
         this->num_index_bits = log2(this->sets);
@@ -94,7 +93,7 @@ bool Cache::tag_match(std::vector<unsigned long> address_fields, std::string act
     // perform tag matching on set [index]
     for (unsigned long i = 0; i < this->assoc; i++)
     {
-        if (this->cache[index][i] == tag)
+        if (this->cache[index][i] == tag and this->open[index][i] == false)
         {
             hit = true;
 
@@ -151,15 +150,15 @@ unsigned long Cache::find_victim(unsigned long index)
     }
 }
 
-writeback Cache::allocate(std::vector<unsigned long> address_fields, std::string action)
+victim Cache::allocate(std::vector<unsigned long> address_fields, std::string action)
 {
     unsigned long tag = address_fields[0];
     unsigned long index = address_fields[1];
 
-    writeback wb = {false, std::bitset<32>()};
+    victim v = {false, false, std::bitset<32>()};
 
     // Look for empty way
-    unsigned long insert_way = this->find_open_way(index);
+    long insert_way = this->find_open_way(index);
 
     // Found empty block so simply load into this position
     if (insert_way != -1)
@@ -173,17 +172,20 @@ writeback Cache::allocate(std::vector<unsigned long> address_fields, std::string
         // find victim block
         insert_way = this->find_victim(index);
 
+        v.replaced = true;
+        v.address = this->encode_address(index, this->cache[index][insert_way]);
+
         // Create writeback request to next level if victim is dirty
         if (this->dirty[index][insert_way])
         {
-            wb.needed = true;
-            wb.address = this->encode_address(index, this->cache[index][insert_way]);
+            v.wb_needed = true;
             this->writebacks++;
         }
 
         // replace victim block
         this->cache[index][insert_way] = tag;
         this->dirty[index][insert_way] = false;
+        this->open[index][insert_way] = false;
 
         //std::cout << "replace into way " << insert_way << std::endl;
     }
@@ -202,7 +204,30 @@ writeback Cache::allocate(std::vector<unsigned long> address_fields, std::string
         this->dirty[index][insert_way] = true;
     }
 
-    return wb;
+    return v;
+}
+
+void Cache::invalidate(std::vector<unsigned long> address_fields)
+{
+    unsigned long tag = address_fields[0];
+    unsigned long index = address_fields[1];
+
+    // perform tag matching on set [index]
+    for (unsigned long i = 0; i < this->assoc; i++)
+    {
+        // if block exists, invalidate it
+        if (this->cache[index][i] == tag and this->open[index][i] == false)
+        {
+            this->open[index][i] = true;
+            
+            // if block is dirty, write back to main memory directly
+            if (this->dirty[index][i] == true)
+            {
+                this->direct_writebacks++;
+                this->dirty[index][i] = false;
+            }
+        }
+    }
 }
 
 int Cache::read(std::vector<unsigned long> address_fields)
@@ -232,7 +257,7 @@ int Cache::write(std::vector<unsigned long> address_fields)
     }
     else
     {
-        this-write_misses++;
+        this->write_misses++;
         return WRITE_MISS;
     }
 } 

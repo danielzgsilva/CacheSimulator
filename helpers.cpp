@@ -38,10 +38,10 @@ void print_config(Params p)
 
 void print_contents(Cache c)
 {
-    for (int i = 0; i < c.sets; i++)
+    for (unsigned long i = 0; i < c.sets; i++)
     {
         std::cout << std::left << std::setw(8) << "Set" << std::setw(4) << std::to_string(i) + ": ";
-        for (int j = 0; j < c.assoc; j++)
+        for (unsigned long j = 0; j < c.assoc; j++)
         {
             std::cout <<  std::setw(7) << std::hex << c.cache[i][j] << std::dec << std::setw(4);
 
@@ -59,7 +59,7 @@ void print_contents(Cache c)
     }
 }
 
-void print_results(Cache l1, Cache l2, bool using_l2)
+void print_results(Cache l1, Cache l2, Params p, bool using_l2)
 {
     double l1_miss_rate = (float)(l1.read_misses + l1.write_misses) / (l1.reads + l1.writes);
     double l2_miss_rate  = 0.;
@@ -73,6 +73,11 @@ void print_results(Cache l1, Cache l2, bool using_l2)
         l2_miss_rate = (float)l2.read_misses / l2.reads;
 
         total_traffic = l2.read_misses + l2.write_misses + l2.writebacks;
+
+        if (p.inclusion_property == 1)
+        {
+            total_traffic += l1.direct_writebacks;
+        }
     }
     else
     {

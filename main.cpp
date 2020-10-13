@@ -1,6 +1,6 @@
 #include "cache.h"
 
-unsigned long PC = 0;
+unsigned long PC;
 unsigned long length = 0;
 std::vector<unsigned long> addresses;
 
@@ -70,19 +70,18 @@ int main(int argc, char** argv)
     }
 
     // Create cache(s)
-    Cache l1 = Cache(p.block_size, p.l1_size, p.l1_assoc, p.replacement_policy, p.inclusion_property);
-    Cache l2 = Cache(p.block_size, p.l2_size, p.l2_assoc, p.replacement_policy, p.inclusion_property);
+    Cache l1 = Cache(p.block_size, p.l1_size, p.l1_assoc, p.replacement_policy);
+    Cache l2 = Cache(p.block_size, p.l2_size, p.l2_assoc, p.replacement_policy);
 
     bool using_l2 = l2.size > 0 && l2.assoc > 0;
 
     std::bitset<address_bits> bit_address;
     std::vector<unsigned long> l1_fields, l2_fields, wb_fields;
-    unsigned long l1_tag, l1_index, l2_tag, l2_index;
     int l1_result, l2_result;
-    writeback writeback;
+    victim _victim;
 
     // Run
-    for (PC; PC < length; PC++)
+    for (PC=0; PC < length; PC++)
     {
         action = actions[PC];
         address = addresses[PC];
@@ -104,60 +103,46 @@ int main(int argc, char** argv)
             
             if (l1_result == READ_MISS)
             {
-                // Go to next level
+                // bring to l1 if read miss
+                _victim = l1.allocate(l1_fields, READ);
+
+                // write back to l2 if needed
+                if (_victim.wb_needed && using_l2)
+                {
+                    l2_fields = l2.decode_address(_victim.address);
+                    l2_result = l2.write(l2_fields);
+
+                    if (l2_result == WRITE_MISS)
+                    {
+                        _victim = l2.allocate(l2_fields, WRITE);
+
+                        // If inclusive cache, need to invalidate the block in l1 that corresponds to l2's victim
+                        if (_victim.replaced && p.inclusion_property == 1)
+                        {
+                            l1_fields = l1.decode_address(_victim.address);
+                            l1.invalidate(l1_fields);
+                        }
+                    }
+                }
+
+                // issue read from l2
                 if (using_l2)
                 {
                     l2_fields = l2.decode_address(bit_address);
-
-                    // std::cout << std::hex << l2_fields[0] << std::dec << "  " << l2_fields[1] << "  " << l2_fields[2] << std::endl;
-
                     l2_result = l2.read(l2_fields);
 
-                    // hit in l2
-                    if (l2_result == READ_HIT)
+                    // bring to l2 if miss
+                    if (l2_result == READ_MISS)
                     {
-                        // bring block from l2 to l1 and perform read
-                        writeback = l1.allocate(l1_fields, READ);
+                        _victim = l2.allocate(l2_fields, READ);
 
-                        // write back to l2 if needed
-                        if (writeback.needed)
+                        // invalidate victim block in l1 if necessary
+                        if (_victim.replaced && p.inclusion_property == 1)
                         {
-                            wb_fields = l2.decode_address(writeback.address);
-                            l2_result = l2.write(wb_fields);
-
-                            if (l2_result == WRITE_MISS)
-                            {
-                                l2.allocate(wb_fields, WRITE);
-                            }
+                            l1_fields = l1.decode_address(_victim.address);
+                            l1.invalidate(l1_fields);
                         }
                     }
-                    // missed in l2
-                    else
-                    {
-                        // bring block from memory to l2
-                        l2.allocate(l2_fields, READ);
-
-                        // then bring to l1 and perform read
-                        writeback = l1.allocate(l1_fields, READ);
-
-                        // write back to l2 if needed
-                        if (writeback.needed)
-                        {
-                            wb_fields = l2.decode_address(writeback.address);
-                            l2_result = l2.write(wb_fields);
-
-                            if (l2_result == WRITE_MISS)
-                            {
-                                l2.allocate(wb_fields, WRITE);
-                            }
-                        }
-                    }
-                    
-                }
-                // With no l2
-                else
-                {
-                    l1.allocate(l1_fields, READ);
                 }
             }
         }
@@ -166,67 +151,51 @@ int main(int argc, char** argv)
         {
             l1_result = l1.write(l1_fields);
 
-            // With no l2
             if (l1_result == WRITE_MISS)
             {
-                // Go to next level
+                // bring to l1 if write misss
+                _victim = l1.allocate(l1_fields, WRITE);
+
+                // writeback to l2 if needed
+                if (_victim.wb_needed && using_l2)
+                {
+                    l2_fields = l2.decode_address(_victim.address);
+                    l2_result = l2.write(l2_fields);
+
+                    if (l2_result == WRITE_MISS)
+                    {
+                        _victim = l2.allocate(l2_fields, WRITE);
+
+                        // invalidate victim block in l1 if necessary
+                        if (_victim.replaced && p.inclusion_property == 1)
+                        {
+                            l1_fields = l1.decode_address(_victim.address);
+                            l1.invalidate(l1_fields);
+                        }
+                    }
+                }
+
+                // issue read from l2
                 if (using_l2)
                 {
                     l2_fields = l2.decode_address(bit_address);
-
-                    //   std::cout << std::hex << l2_fields[0] << std::dec << "  " << l2_fields[1] << "  " << l2_fields[2] << std::endl;
-
                     l2_result = l2.read(l2_fields);
 
-                    // hit in l2
-                    if (l2_result == READ_HIT)
+                    // bring to l2 if miss
+                    if (l2_result == READ_MISS)
                     {
-                        // bring block from l2 to l1 and perform write
-                        writeback = l1.allocate(l1_fields, WRITE);
+                        _victim = l2.allocate(l2_fields, READ);
 
-                        // write back if needed
-                        if (writeback.needed)
+                        // invalidate victim block in l1 if necessary
+                        if (_victim.replaced && p.inclusion_property == 1)
                         {
-                            wb_fields = l2.decode_address(writeback.address);
-                            l2_result = l2.write(wb_fields);
-    
-                            if (l2_result == WRITE_MISS)
-                            {
-                                l2.allocate(wb_fields, WRITE);
-                            }
+                            l1_fields = l1.decode_address(_victim.address);
+                            l1.invalidate(l1_fields);
                         }
                     }
-                    // missed in l2
-                    else 
-                    {
-                        // bring block from memory to l2
-                        l2.allocate(l2_fields, READ);
-
-                        // then bring to l1 and perform write
-                        writeback = l1.allocate(l1_fields, WRITE);
-
-                        // write back if needed
-                        if (writeback.needed)
-                        {
-                            wb_fields = l2.decode_address(writeback.address);
-                            l2_result = l2.write(wb_fields);
-
-                            if (l2_result == WRITE_MISS)
-                            {
-                                l2.allocate(wb_fields, WRITE);
-                            }
-                        }
-                    }
-                    
-                }
-                // With no l2
-                else
-                {
-                    l1.allocate(l1_fields, WRITE);
-                }
+                }   
             }
         }
-
 
         // -------------------------------------------------------------------------------------------------
         // -------------------------------------------------------------------------------------------------
@@ -253,7 +222,7 @@ int main(int argc, char** argv)
         print_contents(l2);
     }
 
-    print_results(l1, l2, using_l2);
+    print_results(l1, l2, p, using_l2);
 
     return 0;
 }

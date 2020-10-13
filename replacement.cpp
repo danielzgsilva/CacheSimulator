@@ -7,10 +7,10 @@ LRU_Matrix::LRU_Matrix(unsigned long sets, unsigned long assoc)
 
     // Create 3d LRU matrix
     this->matrix.resize(sets);
-    for (int i = 0; i < sets; i++)
+    for (unsigned long i = 0; i < sets; i++)
     {
         this->matrix[i].resize(assoc);
-        for (int j = 0; j < assoc; j++)
+        for (unsigned long j = 0; j < assoc; j++)
         {
             this->matrix[i][j].resize(assoc, false);
         }
@@ -24,7 +24,7 @@ void LRU_Matrix::set_row(unsigned long index, unsigned long way)
 
 void LRU_Matrix::unset_column(unsigned long index, unsigned long way)
 {
-    for (int i = 0; i < this->assoc; i++)
+    for (unsigned long i = 0; i < this->assoc; i++)
     {
         this->matrix[index][i][way] = false;
     }
@@ -36,7 +36,7 @@ unsigned long LRU_Matrix::get_lru_block(unsigned long index)
     std::vector<bool> lru_vec(this->assoc, false);
 
     // Find this row
-    for (int i = 0; i < this->assoc; i++)
+    for (unsigned long i = 0; i < this->assoc; i++)
     {
         if (this->matrix[index][i] == lru_vec)
         {
@@ -57,7 +57,7 @@ unsigned long Cache::find_optimal_block(unsigned long index)
     unsigned long furthest_distance = 0, insert_way = 0;
 
     // Find each way in the set
-    for (int way = 0; way < this->assoc; way++)
+    for (unsigned long way = 0; way < this->assoc; way++)
     {
         // Loop through remaining instructions until we find when it is accessed again
         for (unsigned long i = PC + 1; i < length; i++)
@@ -75,7 +75,7 @@ unsigned long Cache::find_optimal_block(unsigned long index)
     }
 
     // Return block that is accessed furthest in future
-    for (int way = 0; way < this->assoc; way++)
+    for (unsigned long way = 0; way < this->assoc; way++)
     {
         // never accessed again
         if (access_distances[way] == 0)

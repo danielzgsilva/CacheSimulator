@@ -35,14 +35,20 @@ struct Params
     unsigned long block_size;
     unsigned long l1_size, l1_assoc;
     unsigned long l2_size, l2_assoc;
+
+    // 0 - LRU, 1 - PLRU, 2 - Optimal
     int replacement_policy;
+
+    // 0 - non-inclusive 1 - inclusive
+
     int inclusion_property;
     std::string trace_file;
 };
 
-struct writeback
+struct victim
 {
-    bool needed;
+    bool replaced;
+    bool wb_needed;
     std::bitset<address_bits> address;
 };
 
@@ -81,13 +87,7 @@ class Cache
 {
     public:
         unsigned long block_size, size, assoc, sets;
-
-        // 0 - LRU, 1 - PLRU, 2 - Optimal
         int replacement_policy;
-
-        // 0 - non-inclusive 1 - inclusive
-        int inclusion_property;
-
         int num_index_bits, num_offset_bits, num_tag_bits;
 
         LRU_Matrix lru_matrix;
@@ -98,12 +98,13 @@ class Cache
         unsigned long writes = 0;
         unsigned long write_misses = 0;
         unsigned long writebacks = 0;
+        unsigned long direct_writebacks = 0;
 
         std::vector<std::vector<unsigned long>> cache;
         std::vector<std::vector<bool>> open;
         std::vector<std::vector<bool>> dirty;
 
-        Cache(unsigned long block_size, unsigned long size, unsigned long assoc, int replacement, int inclusion);
+        Cache(unsigned long block_size, unsigned long size, unsigned long assoc, int replacement);
 
         std::vector<unsigned long> decode_address(std::bitset<address_bits> address);
 
@@ -115,15 +116,17 @@ class Cache
 
         unsigned long find_victim(unsigned long index);
 
-        writeback allocate(std::vector<unsigned long> address_fields, std::string action);
+        victim allocate(std::vector<unsigned long> address_fields, std::string action);
         
         int read(std::vector<unsigned long> address_fields);
         
         int write(std::vector<unsigned long> address_fields);
+        
+        void invalidate(std::vector<unsigned long> address_fields);
 
         unsigned long find_optimal_block(unsigned long index);
 };
 
 void print_config(Params p);
 void print_contents(Cache cache);
-void print_results(Cache l1, Cache l2, bool using_l2);
+void print_results(Cache l1, Cache l2, Params p, bool using_l2);
