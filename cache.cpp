@@ -41,7 +41,7 @@ Cache::Cache(unsigned long block_size, unsigned long size, unsigned long assoc, 
         }
         else if (this->replacement_policy == OPT)
         {
-            assert(false && "optimal replacement policy not ready");
+            //std::cout << "OPT replace" << std::endl;
         }
         else
         {
@@ -99,15 +99,19 @@ bool Cache::tag_match(std::vector<unsigned long> address_fields, std::string act
             hit = true;
 
             // update LRU matrix on hit
-            this->lru_matrix.set_row(index, i);
-            this->lru_matrix.unset_column(index, i);
+            if (this->replacement_policy == LRU)
+            {
+                // update LRU matrix after allocation
+                this->lru_matrix.set_row(index, i);
+                this->lru_matrix.unset_column(index, i);
+            }
 
             // Set block to dirty if write request
             if (action.compare(WRITE) == 0)
             {
                 this->dirty[index][i] = true;
             }
-            //std::cout << "HIT" << std::endl;
+            //std::cout << "HIT" << i << std::endl;
         }
     }
     return hit;
@@ -139,7 +143,7 @@ unsigned long Cache::find_victim(unsigned long index)
     }
     else if (this->replacement_policy == OPT)
     {
-        assert(false && "optimal replacement policy not ready");
+        return this->find_optimal_block(index);
     }
     else
     {
@@ -184,9 +188,13 @@ writeback Cache::allocate(std::vector<unsigned long> address_fields, std::string
         //std::cout << "replace into way " << insert_way << std::endl;
     }
 
-    // update LRU matrix after allocation
-    this->lru_matrix.set_row(index, insert_way);
-    this->lru_matrix.unset_column(index, insert_way);
+
+    if (this->replacement_policy == LRU)
+    {
+        // update LRU matrix after allocation
+        this->lru_matrix.set_row(index, insert_way);
+        this->lru_matrix.unset_column(index, insert_way);
+    }
 
     // Mark block as dirty if write request
     if (action.compare(WRITE) == 0)

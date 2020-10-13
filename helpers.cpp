@@ -47,8 +47,13 @@ void print_contents(Cache c)
 
             if (c.dirty[i][j])
             {
-                std::cout << "D";
+                std::cout << " D ";
             }
+            else
+            {
+                std::cout << "   ";
+            }
+            
         }
         std::cout << std::endl;
     }

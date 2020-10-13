@@ -26,6 +26,10 @@
 #define NON_INCLUSIVE 0
 #define INCLUSIVE 1
 
+extern unsigned long PC;
+extern unsigned long length;
+extern std::vector<unsigned long> addresses;
+
 struct Params
 {
     unsigned long block_size;
@@ -116,6 +120,8 @@ class Cache
         int read(std::vector<unsigned long> address_fields);
         
         int write(std::vector<unsigned long> address_fields);
+
+        unsigned long find_optimal_block(unsigned long index);
 };
 
 void print_config(Params p);
