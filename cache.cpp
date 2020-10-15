@@ -36,7 +36,7 @@ Cache::Cache(unsigned long block_size, unsigned long size, unsigned long assoc, 
         }
         else if (this->replacement_policy == PLRU)
         {
-            assert(false && "PLRU replacement policy not ready");
+            lru_tree = LRU_Tree(this->sets, this->assoc);
         }
         else if (this->replacement_policy == OPT)
         {
@@ -51,6 +51,8 @@ Cache::Cache(unsigned long block_size, unsigned long size, unsigned long assoc, 
 
 std::vector<unsigned long> Cache::decode_address(std::bitset<32> address)
 {
+    // decodes a 32 bit address into tag, index, and block offset
+
     std::vector<unsigned long> fields(3);
     std::string string_address = address.to_string();
 
@@ -72,6 +74,7 @@ std::vector<unsigned long> Cache::decode_address(std::bitset<32> address)
 
 std::bitset<32> Cache::encode_address(unsigned long index, unsigned long tag)
 {
+    // encode index and tag fields into a 32 bit address
     std::bitset<address_bits> address;
     std::bitset<address_bits> tag_bits(tag);
     std::bitset<address_bits> index_bits(index);
@@ -93,16 +96,21 @@ bool Cache::tag_match(std::vector<unsigned long> address_fields, std::string act
     // perform tag matching on set [index]
     for (unsigned long i = 0; i < this->assoc; i++)
     {
+        // hit
         if (this->cache[index][i] == tag and this->open[index][i] == false)
         {
             hit = true;
 
-            // update LRU matrix on hit
+            // update LRU matrix on access
             if (this->replacement_policy == LRU)
             {
-                // update LRU matrix after allocation
                 this->lru_matrix.set_row(index, i);
                 this->lru_matrix.unset_column(index, i);
+            }
+            // update PLRU tree on access
+            else if (this->replacement_policy == PLRU)
+            {
+                this->lru_tree.update_on_access(index, i);
             }
 
             // Set block to dirty if write request
@@ -118,6 +126,7 @@ bool Cache::tag_match(std::vector<unsigned long> address_fields, std::string act
 
 long Cache::find_open_way(unsigned long index)
 {   
+    // return first valid block in set
     for (unsigned long i = 0; i < this->assoc; i++)
     {
         if (this->open[index][i])
@@ -132,13 +141,15 @@ long Cache::find_open_way(unsigned long index)
 
 unsigned long Cache::find_victim(unsigned long index)
 {   
+    // returns an appropriate victim block based on replacement policy
+
     if (this->replacement_policy == LRU)
     {
         return this->lru_matrix.get_lru_block(index);
     }
     else if (this->replacement_policy == PLRU)
     {
-        assert(false && "PLRU replacement policy not ready");
+        return this->lru_tree.get_lru_block(index);
     }
     else if (this->replacement_policy == OPT)
     {
@@ -146,7 +157,7 @@ unsigned long Cache::find_victim(unsigned long index)
     }
     else
     {
-        assert(false && "unsupported replacement policy in find_victim()");
+        assert(false && "unsupported replacement policy in Cache::find_victim()");
     }
 }
 
@@ -169,9 +180,10 @@ victim Cache::allocate(std::vector<unsigned long> address_fields, std::string ac
     }
     else
     {   
-        // find victim block
+        // find victim block with appropriate replacement policy
         insert_way = this->find_victim(index);
 
+        // keep track of victim info
         v.replaced = true;
         v.address = this->encode_address(index, this->cache[index][insert_way]);
 
@@ -197,6 +209,11 @@ victim Cache::allocate(std::vector<unsigned long> address_fields, std::string ac
         this->lru_matrix.set_row(index, insert_way);
         this->lru_matrix.unset_column(index, insert_way);
     }
+    else if (this->replacement_policy == PLRU)
+    {
+        // update PLRU tree after allocation
+        this->lru_tree.update_on_allocate(index, insert_way);
+    }
 
     // Mark block as dirty if write request
     if (action.compare(WRITE) == 0)
@@ -204,6 +221,7 @@ victim Cache::allocate(std::vector<unsigned long> address_fields, std::string ac
         this->dirty[index][insert_way] = true;
     }
 
+    // return victim 
     return v;
 }
 

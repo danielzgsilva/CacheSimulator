@@ -7,6 +7,7 @@
 #include <sstream>
 #include <bitset>
 #include <vector>
+#include <deque>
 
 #define address_bits 32
 
@@ -69,18 +70,49 @@ class LRU_Matrix
         unsigned long get_lru_block(unsigned long index);
 };
 
-class LRU_tree
+struct TreeNode  
+{ 
+  bool flag; 
+  bool leaf;
+  long way;
+
+  struct TreeNode *parent; 
+  struct TreeNode *left; 
+  struct TreeNode *right; 
+
+  TreeNode(bool _flag, bool _leaf, long _way, TreeNode* _parent, TreeNode* _left, TreeNode* _right) 
+    { 
+        flag = _flag; 
+        leaf = _leaf;
+        way = _way;
+
+        parent = _parent; 
+        left = _left; 
+        right = _right; 
+    } 
+};
+
+class LRU_Tree
 {
     public:
         unsigned long sets;
         unsigned long assoc;
 
-        // using 1d array representation of a binary tree,
-        // one tree for each set in a cache
-        std::vector<std::vector<bool>> tree;
+        // stores pointers to the root of each tree
+        // we keep one tree for each set in cache
+        std::vector<TreeNode*> roots;
 
-        LRU_tree(unsigned long sets, unsigned long assoc);
-        LRU_tree() = default;
+        // stores pointers to the leaf nodes of each tree
+        std::vector<std::vector<TreeNode*>> leafs;
+
+        LRU_Tree(unsigned long sets, unsigned long assoc);
+        LRU_Tree() = default;
+
+        void update_on_access(unsigned long index, unsigned long way);
+        void update_on_allocate(unsigned long index, unsigned long way);
+        unsigned long get_lru_block(unsigned long index);
+        void print_trees();
+        void print_tree(TreeNode *root, int space);
 };
 
 class Cache
@@ -91,6 +123,7 @@ class Cache
         int num_index_bits, num_offset_bits, num_tag_bits;
 
         LRU_Matrix lru_matrix;
+        LRU_Tree lru_tree;
 
         // for logging
         unsigned long reads = 0; 

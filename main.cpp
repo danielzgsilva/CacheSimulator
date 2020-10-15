@@ -29,7 +29,7 @@ int main(int argc, char** argv)
     print_config(p);    
 
     // Trace file stream
-    std::ifstream input("./traces/" + p.trace_file);
+    std::ifstream input(p.trace_file);
 
     // Preprocess input file
     std::vector<std::string> actions;
@@ -68,6 +68,11 @@ int main(int argc, char** argv)
             length++;
         }
     }
+    else
+    {
+        std::cout << p.trace_file << " not found! Please provide the correct file path." << std::endl;
+        return -1;
+    }
 
     // Create cache(s)
     Cache l1 = Cache(p.block_size, p.l1_size, p.l1_assoc, p.replacement_policy);
@@ -93,12 +98,10 @@ int main(int argc, char** argv)
 
         //std::cout << PC << ": " << action << ' ' <<  std::hex << address << std::dec << ":  ";
         //std::cout << std::hex << l1_fields[0] << std::dec << "  " << l1_fields[1] << "  " << l1_fields[2] << std::endl;
-
-        // -------------------------------------------------------------------------------------------------
-        // -------------------------------------------------------------------------------------------------
         
         if (action.compare(READ) == 0)
         {   
+            // attempt to read from l1
             l1_result = l1.read(l1_fields);
             
             if (l1_result == READ_MISS)
@@ -109,11 +112,13 @@ int main(int argc, char** argv)
                 // write back to l2 if needed
                 if (_victim.wb_needed && using_l2)
                 {
+                    // decode victim address and attempt to write to l2
                     l2_fields = l2.decode_address(_victim.address);
                     l2_result = l2.write(l2_fields);
 
                     if (l2_result == WRITE_MISS)
                     {
+                        // allocate block in l2 if miss
                         _victim = l2.allocate(l2_fields, WRITE);
 
                         // If inclusive cache, need to invalidate the block in l1 that corresponds to l2's victim
@@ -149,6 +154,7 @@ int main(int argc, char** argv)
 
         else if (action.compare(WRITE) == 0)
         {
+            // attempt to write to l1
             l1_result = l1.write(l1_fields);
 
             if (l1_result == WRITE_MISS)
@@ -204,15 +210,11 @@ int main(int argc, char** argv)
         {
             std::cout << " action " + action + " is not supported" << std::endl;
         }
-
-       // print_contents(l1);
-        /*std::cout << "===== L2 contents =====" << std::endl;
-        print_contents(l2); */
-        //std::cout << " -------------------------------------------------------------------------------------------------" << std::endl;
     }
 
     input.close();
 
+    // print cache contents
     std::cout << "===== L1 contents =====" << std::endl;
     print_contents(l1);
 
@@ -222,6 +224,7 @@ int main(int argc, char** argv)
         print_contents(l2);
     }
 
+    // print simulation results
     print_results(l1, l2, p, using_l2);
 
     return 0;

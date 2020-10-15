@@ -25,6 +25,18 @@ void print_config(Params p)
             break;
     }
 
+    // Extract name of trace file from trace path
+    std::string trace_file;
+    std::size_t pos = p.trace_file.find_last_of("/\\");
+    if (pos == std::string::npos)
+    {
+        trace_file = p.trace_file;
+    }
+    else
+    {
+        trace_file =  p.trace_file.substr(pos + 1);
+    }
+
     std::cout << "===== Simulator configuration =====" << std::endl;
     std::cout << std::left << std::setw(23) << "BLOCKSIZE:" << std::to_string(p.block_size) << std::endl;
     std::cout << std::left << std::setw(23) << "L1_SIZE: " << std::to_string(p.l1_size) << std::endl;
@@ -33,11 +45,12 @@ void print_config(Params p)
     std::cout << std::left << std::setw(23) << "L2_ASSOC: " << std::to_string(p.l2_assoc) << std::endl;
     std::cout << std::left << std::setw(23) << "REPLACEMENT POLICY: " << str_replacement_policy << std::endl;
     std::cout << std::left << std::setw(23) << "INCLUSION PROPERTY: " << str_inclusion_property << std::endl;
-    std::cout << std::left << std::setw(23) << "trace_file: " << p.trace_file << std::endl;
+    std::cout << std::left << std::setw(23) << "trace_file: " << trace_file << std::endl;
 }
 
 void print_contents(Cache c)
 {
+    // prints the contents of a cache
     for (unsigned long i = 0; i < c.sets; i++)
     {
         std::cout << std::left << std::setw(8) << "Set" << std::setw(4) << std::to_string(i) + ": ";
@@ -59,6 +72,7 @@ void print_contents(Cache c)
     }
 }
 
+// prints simulation results
 void print_results(Cache l1, Cache l2, Params p, bool using_l2)
 {
     double l1_miss_rate = (float)(l1.read_misses + l1.write_misses) / (l1.reads + l1.writes);
